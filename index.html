@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contador ESP32</title>
+</head>
+<body>
+  <h1>Contador Automático</h1>
+  <p>Valor atual: <span id="contador">Carregando...</span></p>
+
+  <script>
+    async function atualizarContador() {
+      const res = await fetch('https://minha-api.up.railway.app/contador');
+      const data = await res.json();
+      document.getElementById('contador').textContent = data.contador;
+    }
+
+    // Atualiza a cada 5 segundos
+    setInterval(atualizarContador, 5000);
+    atualizarContador();
+  </script>
+</body>
+</html>
