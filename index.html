@@ -10,7 +10,7 @@
 
   <script>
     async function atualizarContador() {
-      const res = await fetch('https://minha-api.up.railway.app/contador');
+      const res = await fetch('https://iot-teste.onrender.com/contador');
       const data = await res.json();
       document.getElementById('contador').textContent = data.contador;
     }
