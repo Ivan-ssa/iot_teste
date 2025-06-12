@@ -10,14 +10,17 @@
 
   <script>
     async function atualizarContador() {
-      const res = await fetch('https://iot-teste.onrender.com/contador');
-      const data = await res.json();
-      document.getElementById('contador').textContent = data.contador;
+      try {
+        const res = await fetch('https://iot-teste.onrender.com/contador');
+        const data = await res.json();
+        document.getElementById('contador').textContent = data.contador;
+      } catch (err) {
+        document.getElementById('contador').textContent = "Erro";
+      }
     }
 
-    // Atualiza a cada 5 segundos
-    setInterval(atualizarContador, 5000);
-    atualizarContador();
+    setInterval(atualizarContador, 1000); // Atualiza a cada 1 segundo
+    atualizarContador(); // Atualiza ao carregar a página
   </script>
 </body>
 </html>
