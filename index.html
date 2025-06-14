@@ -7,24 +7,22 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
-    /* Define a fonte Inter para todo o corpo da página */
     body {
       font-family: "Inter", sans-serif;
     }
-    /* Estilo para a barra de rolagem personalizada (se houver conteúdo rolável) */
     .custom-scrollbar::-webkit-scrollbar {
       width: 8px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05); /* Fundo sutil para a trilha da barra de rolagem */
+      background: rgba(0, 0, 0, 0.05);
       border-radius: 10px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.2); /* Cor da "alça" da barra de rolagem */
+      background: rgba(0, 0, 0, 0.2);
       border-radius: 10px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 0, 0, 0.3); /* Cor da "alça" da barra de rolagem ao passar o mouse */
+      background: rgba(0, 0, 0, 0.3);
     }
   </style>
 </head>
@@ -45,21 +43,16 @@
   <script>
     const tagElement = document.getElementById('tagAtual');
     const statusMessageElement = document.getElementById('statusMessage');
-    // CERTIFIQUE-SE DE QUE ESTA URL É A CORRETA DA SUA API NO RENDER.COM
-    
     const API_URL = 'https://iot-teste.onrender.com/api/latest-tag';
-    const FETCH_INTERVAL_MS = 1000; // Atualiza a cada 1 segundo
+    const FETCH_INTERVAL_MS = 1000;
 
-    /**
-     * Atualiza o texto da tag e a mensagem de status na interface.
-     * @param {string} text - O texto principal a ser exibido (UID da tag ou mensagem de estado).
-     * @param {string} colorClass - Classe Tailwind CSS para a cor do texto da tag (ex: 'text-green-600').
-     * @param {string} statusText - Mensagem de status adicional (ex: 'Conectado à API').
-     * @param {string} statusColorClass - Classe Tailwind CSS para a cor da mensagem de status.
-     */
+    // Variável para armazenar a última tag exibida
+    let lastDisplayedTag = null;
+    // Variável para controlar se houve um erro de conexão recente
+    let connectionErrorOccurred = false;
+
     function updateUI(text, colorClass, statusText, statusColorClass) {
       tagElement.textContent = text;
-      // Remove todas as classes de cor anteriores e adiciona a nova
       tagElement.classList.remove('text-green-600', 'text-red-600', 'text-orange-600');
       tagElement.classList.add(colorClass);
 
@@ -68,18 +61,18 @@
       statusMessageElement.classList.add(statusColorClass);
     }
 
-    /**
-     * Função assíncrona para buscar e atualizar o número da tag.
-     */
     async function fetchTag() {
       try {
-        updateUI('Buscando...', 'text-orange-600', 'Conectando à API...', 'text-gray-500');
+        // Só mostra "Buscando..." se for a primeira vez ou se houve um erro de conexão anterior
+        if (lastDisplayedTag === null || connectionErrorOccurred) {
+            updateUI('Buscando...', 'text-orange-600', 'Conectando à API...', 'text-gray-500');
+        }
 
         const res = await fetch(API_URL);
+        connectionErrorOccurred = false; // Resetar o flag de erro se a requisição foi bem-sucedida
 
         if (!res.ok) {
-          // Lança um erro com mais detalhes para ser capturado no catch
-          const errorBody = await res.text(); // Tenta ler o corpo da resposta para mais detalhes
+          const errorBody = await res.text();
           throw new Error(`Erro HTTP ${res.status}: ${res.statusText}. Detalhes: ${errorBody.substring(0, 100)}...`);
         }
 
@@ -90,16 +83,36 @@
         }
 
         const data = await res.json();
+        const currentTag = data.tagId; // A tag atual recebida da API
 
-        if (data.tagId) {
-          updateUI(data.tagId, 'text-green-600', 'Tag atualizada com sucesso!', 'text-green-500');
+        // Compara a tag atual com a última tag exibida
+        if (currentTag !== lastDisplayedTag) {
+          if (currentTag) {
+            updateUI(currentTag, 'text-green-600', 'Nova tag lida com sucesso!', 'text-green-500');
+          } else {
+            // Se a API retornar null (nenhuma tag lida ainda) e for diferente da última exibida
+            updateUI('Nenhuma tag lida ainda.', 'text-orange-600', 'API conectada, aguardando tags...', 'text-gray-500');
+          }
+          lastDisplayedTag = currentTag; // Atualiza a última tag exibida
         } else {
-          updateUI('Nenhuma tag lida ainda.', 'text-orange-600', 'API conectada, aguardando tags...', 'text-gray-500');
+          // Se a tag for a mesma, apenas mantém o status da mensagem
+          if (currentTag) {
+              statusMessageElement.textContent = 'Aguardando nova tag...';
+              statusMessageElement.classList.remove('text-red-500', 'text-orange-500');
+              statusMessageElement.classList.add('text-green-500');
+          } else {
+              statusMessageElement.textContent = 'API conectada, aguardando tags...';
+              statusMessageElement.classList.remove('text-red-500', 'text-green-500');
+              statusMessageElement.classList.add('text-gray-500');
+          }
         }
+
       } catch (err) {
-        // Em caso de erro na conexão com a API ou no processamento da resposta
+        // Em caso de erro, exibe a mensagem de erro e seta o flag
+        connectionErrorOccurred = true;
         updateUI('Erro de Conexão!', 'text-red-600', `Não foi possível conectar à API: ${err.message}`, 'text-red-500');
         console.error("Erro ao buscar tag:", err);
+        lastDisplayedTag = null; // Reinicia a última tag para forçar "Buscando..." na próxima tentativa de sucesso
       }
     }
 
