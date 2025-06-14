@@ -3,10 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <title>Contador ESP32</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    p {
+      font-size: 1.5rem;
+      color: #555;
+    }
+
+    #contador {
+      font-weight: bold;
+      color: #007bff;
+    }
+  </style>
 </head>
 <body>
-  <h1>Contador Automático</h1>
-  <p>Valor atual: <span id="contador">Carregando...</span></p>
+  <div class="container">
+    <h1>Contador Automático</h1>
+    <p>Valor atual: <span id="contador">Carregando...</span></p>
+  </div>
 
   <script>
     async function atualizarContador() {
@@ -19,8 +56,8 @@
       }
     }
 
-    setInterval(atualizarContador, 500); // Atualiza a cada 1 segundo
-    atualizarContador(); // Atualiza ao carregar a página
+    setInterval(atualizarContador, 500);
+    atualizarContador();
   </script>
 </body>
 </html>
