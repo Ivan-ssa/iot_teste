@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Leitor de Tags RFID</title>
-  <!-- Inclui o CDN do Tailwind CSS para estilização moderna -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
     /* Define a fonte Inter para todo o corpo da página */
     body {
@@ -28,70 +28,84 @@
     }
   </style>
 </head>
-<!-- Fundo mais claro e sutil para uma estética limpa -->
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-  <!-- Container principal com fundo branco sólido, sombra suave e padding aumentado -->
   <div class="bg-white rounded-2xl shadow-lg p-10 md:p-14 max-w-lg w-full text-center">
-    <!-- Título com cor mais sóbria e sem animação de pulso -->
     <h1 class="text-4xl md:text-5xl font-extrabold mb-6 text-indigo-800 drop-shadow-md">
       Leitor de Tags RFID
     </h1>
-    <!-- Texto geral com cor de alto contraste no fundo branco -->
     <p class="text-2xl md:text-3xl text-gray-700 mb-8">
       Última Tag Lida:
-      <!-- Span onde o número da tag será exibido -->
       <span id="tagAtual" class="font-bold text-green-600 text-5xl md:text-6xl block mt-2">
         Aguardando Tag...
       </span>
     </p>
+    <div id="statusMessage" class="mt-4 text-lg font-medium text-gray-500"></div>
   </div>
 
   <script>
-    // Função assíncrona para buscar e atualizar o número da tag
-    async function atualizarTag() {
-      const tagElement = document.getElementById('tagAtual'); // Obtém o elemento onde a tag será exibida
-      try {
-        // Faz uma requisição GET para a API para obter a última tag lida
-        // CERTIFIQUE-SE DE QUE ESTA URL É A CORRETA DA SUA API NO RENDER.COM
-        const res = await fetch('https://iot-teste.onrender.com/latest-tag');
+    const tagElement = document.getElementById('tagAtual');
+    const statusMessageElement = document.getElementById('statusMessage');
+    // CERTIFIQUE-SE DE QUE ESTA URL É A CORRETA DA SUA API NO RENDER.COM
+    const API_URL = 'https://iot-teste.onrender.com/latest-tag';
+    const FETCH_INTERVAL_MS = 1000; // Atualiza a cada 1 segundo
 
-        // Verifica se a resposta foi bem-sucedida (código HTTP 2xx)
+    /**
+     * Atualiza o texto da tag e a mensagem de status na interface.
+     * @param {string} text - O texto principal a ser exibido (UID da tag ou mensagem de estado).
+     * @param {string} colorClass - Classe Tailwind CSS para a cor do texto da tag (ex: 'text-green-600').
+     * @param {string} statusText - Mensagem de status adicional (ex: 'Conectado à API').
+     * @param {string} statusColorClass - Classe Tailwind CSS para a cor da mensagem de status.
+     */
+    function updateUI(text, colorClass, statusText, statusColorClass) {
+      tagElement.textContent = text;
+      // Remove todas as classes de cor anteriores e adiciona a nova
+      tagElement.classList.remove('text-green-600', 'text-red-600', 'text-orange-600');
+      tagElement.classList.add(colorClass);
+
+      statusMessageElement.textContent = statusText;
+      statusMessageElement.classList.remove('text-gray-500', 'text-red-500', 'text-green-500');
+      statusMessageElement.classList.add(statusColorClass);
+    }
+
+    /**
+     * Função assíncrona para buscar e atualizar o número da tag.
+     */
+    async function fetchTag() {
+      try {
+        updateUI('Buscando...', 'text-orange-600', 'Conectando à API...', 'text-gray-500');
+
+        const res = await fetch(API_URL);
+
         if (!res.ok) {
-          throw new Error(`Erro HTTP: ${res.status} - ${res.statusText}`);
+          // Lança um erro com mais detalhes para ser capturado no catch
+          const errorBody = await res.text(); // Tenta ler o corpo da resposta para mais detalhes
+          throw new Error(`Erro HTTP ${res.status}: ${res.statusText}. Detalhes: ${errorBody.substring(0, 100)}...`);
         }
 
-        // Verifica o cabeçalho Content-Type para garantir que é JSON
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          const textResponse = await res.text(); // Lê a resposta como texto para debug
-          throw new Error(`Resposta inesperada da API. Esperado JSON, mas recebeu: ${contentType || 'Nenhum'} Conteúdo: ${textResponse.substring(0, 100)}...`);
+          const textResponse = await res.text();
+          throw new Error(`Resposta inesperada. Esperado JSON, mas recebeu "${contentType || 'Nenhum'}". Conteúdo: ${textResponse.substring(0, 100)}...`);
         }
 
-        const data = await res.json(); // Converte a resposta para JSON
+        const data = await res.json();
 
-        // Verifica se há um ID de tag na resposta
         if (data.tagId) {
-          tagElement.textContent = data.tagId; // Atualiza o texto com o ID da tag
-          tagElement.classList.remove('text-red-600', 'text-orange-600'); // Remove cores de erro/alerta
-          tagElement.classList.add('text-green-600'); // Adiciona cor verde para indicar sucesso
+          updateUI(data.tagId, 'text-green-600', 'Tag atualizada com sucesso!', 'text-green-500');
         } else {
-          tagElement.textContent = "Nenhuma tag lida ainda."; // Mensagem padrão se não houver tag
-          tagElement.classList.remove('text-green-600', 'text-red-600');
-          tagElement.classList.add('text-orange-600'); // Adiciona cor laranja para indicar ausência
+          updateUI('Nenhuma tag lida ainda.', 'text-orange-600', 'API conectada, aguardando tags...', 'text-gray-500');
         }
       } catch (err) {
         // Em caso de erro na conexão com a API ou no processamento da resposta
-        tagElement.textContent = `Erro: ${err.message}`; // Mostra a mensagem de erro
-        tagElement.classList.remove('text-green-600', 'text-orange-600');
-        tagElement.classList.add('text-red-600'); // Adiciona cor vermelha para indicar erro
-        console.error("Erro ao buscar tag:", err); // Loga o erro no console
+        updateUI('Erro de Conexão!', 'text-red-600', `Não foi possível conectar à API: ${err.message}`, 'text-red-500');
+        console.error("Erro ao buscar tag:", err);
       }
     }
 
-    // Define um intervalo para atualizar a tag a cada 1 segundo (1000 ms)
-    setInterval(atualizarTag, 1000);
-    // Chama a função uma vez imediatamente ao carregar a página para exibir o estado inicial
-    atualizarTag();
+    // Define um intervalo para atualizar a tag
+    setInterval(fetchTag, FETCH_INTERVAL_MS);
+    // Chama a função uma vez imediatamente ao carregar a página
+    fetchTag();
   </script>
 </body>
 </html>
