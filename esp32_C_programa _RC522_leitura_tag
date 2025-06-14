@@ -1,1 +1,84 @@
+#include <SPI.h>
+#include <MFRC522.h>
 
+// Definição dos pinos GPIO do ESP32 conectados ao módulo RC522:
+// Conforme a sua configuração:
+// ESP32 -- RC522
+// D18   -- SCK (pino SCK é automaticamente gerenciado pela biblioteca SPI)
+// D19   -- MISO (pino MISO é automaticamente gerenciado pela biblioteca SPI)
+// D21   -- SDA (também conhecido como SS/CS - Slave Select/Chip Select)
+// D22   -- RST (Reset)
+// D23   -- MOSI (pino MOSI é automaticamente gerenciado pela biblioteca SPI)
+#define SS_PIN    21 // Conectado ao pino SDA (ou CS) do RC522. No ESP32, D21 é o GPIO21.
+#define RST_PIN   22 // Conectado ao pino RST do RC522. No ESP32, D22 é o GPIO22.
+
+// Pinos do ESP32 para o LED (o LED interno do ESP32 é geralmente no GPIO2)
+#define LED_INTERNO_ESP32   2 // O LED interno do ESP32 está geralmente conectado ao GPIO2
+
+// Cria uma instância do objeto MFRC522.
+// Passamos os pinos SS e RST para o construtor.
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+void setup() {
+  // Inicia a comunicação serial para debug e visualização dos UIDs.
+  Serial.begin(115200);
+  // Garante que a porta serial esteja aberta antes de continuar (útil para algumas placas).
+  while (!Serial);
+
+  // Inicia a interface SPI (Serial Peripheral Interface), que é como o ESP32
+  // se comunica com o RC522 para SCK, MISO e MOSI.
+  SPI.begin();
+  // Inicializa o módulo MFRC522.
+  mfrc522.PCD_Init();
+
+  // Configura o pino do LED interno do ESP32 como saída.
+  pinMode(LED_INTERNO_ESP32, OUTPUT);
+  // Garante que o LED esteja desligado no início.
+  digitalWrite(LED_INTERNO_ESP32, LOW);
+
+  // Mensagem inicial no Monitor Serial.
+  Serial.println("=========================================");
+  Serial.println("RFID RC522 e ESP32 - Leitor de Tags");
+  Serial.println("Aproxime o seu cartao ou chaveiro RFID...");
+  Serial.println("=========================================");
+}
+
+void loop() {
+  // 1. Verifica se há uma nova tag presente no campo do leitor.
+  // Se não houver uma nova tag, o LED interno será desligado e a função loop retornará.
+  if ( ! mfrc522.PICC_IsNewCardPresent()) {
+    digitalWrite(LED_INTERNO_ESP32, LOW); // Desliga o LED se nenhuma tag for detectada.
+    return; // Sai da função loop para verificar novamente.
+  }
+
+  // 2. Tenta ler a serial (UID) da tag que foi detectada.
+  // Se não conseguir ler a serial, o LED será desligado e a função loop retornará.
+  if ( ! mfrc522.PICC_ReadCardSerial()) {
+    digitalWrite(LED_INTERNO_ESP32, LOW); // Desliga o LED se não conseguir ler a tag.
+    return; // Sai da função loop para verificar novamente.
+  }
+
+  // Se as duas verificações acima foram bem-sucedidas, significa que uma tag foi lida.
+  // 3. Acende o LED interno do ESP32 para indicar a leitura bem-sucedida.
+  digitalWrite(LED_INTERNO_ESP32, HIGH);
+
+  // 4. Exibe o UID (Identificador Único) da tag no Serial Monitor.
+  Serial.print("Tag UID (HEX): ");
+  // Itera sobre cada byte do UID da tag.
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    // Adiciona um espaço e um '0' à frente se o byte for menor que 0x10 (para formatação).
+    Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+    // Imprime o byte em formato hexadecimal.
+    Serial.print(mfrc522.uid.uidByte[i], HEX);
+  }
+  Serial.println(); // Nova linha para o próximo UID.
+
+  // Opcional: Adiciona um pequeno atraso para que o LED fique aceso por um tempo visível
+  // antes de verificar novamente o estado da tag (se ela foi removida, etc.).
+  delay(100); // Mantém o LED aceso por 100 milissegundos.
+
+  // Você pode adicionar mais lógica aqui, como:
+  // - Comparar o UID lido com UIDs autorizados.
+  // - Acionar um relé.
+  // - Enviar os dados para uma plataforma IoT.
+}
