@@ -46,30 +46,43 @@
     const API_URL = 'https://iot-teste.onrender.com/api/latest-tag';
     const FETCH_INTERVAL_MS = 1000;
 
-    // Variável para armazenar a última tag exibida
-    let lastDisplayedTag = null;
-    // Variável para controlar se houve um erro de conexão recente
-    let connectionErrorOccurred = false;
+    let lastDisplayedTag = null; // Armazena a última tag que foi mostrada na UI (null = nunca exibiu)
+    let isInitialLoad = true; // Flag para a primeira carga da página
+    let hasConnectionError = false; // Flag para saber se houve um erro de conexão
 
-    function updateUI(text, colorClass, statusText, statusColorClass) {
+    /**
+     * Atualiza o TEXTO e a COR do elemento da tag.
+     * Isso é separado da mensagem de status para controlar a piscação da tag.
+     */
+    function updateTagDisplay(text, colorClass) {
       tagElement.textContent = text;
       tagElement.classList.remove('text-green-600', 'text-red-600', 'text-orange-600');
       tagElement.classList.add(colorClass);
+    }
 
-      statusMessageElement.textContent = statusText;
-      statusMessageElement.classList.remove('text-gray-500', 'text-red-500', 'text-green-500');
-      statusMessageElement.classList.add(statusColorClass);
+    /**
+     * Atualiza o TEXTO e a COR do elemento da mensagem de status.
+     */
+    function updateStatusMessage(text, colorClass) {
+      statusMessageElement.textContent = text;
+      statusMessageElement.classList.remove('text-gray-500', 'text-red-500', 'text-green-500', 'text-orange-500'); // Remover todas as cores possíveis
+      statusMessageElement.classList.add(colorClass);
     }
 
     async function fetchTag() {
       try {
-        // Só mostra "Buscando..." se for a primeira vez ou se houve um erro de conexão anterior
-        if (lastDisplayedTag === null || connectionErrorOccurred) {
-            updateUI('Buscando...', 'text-orange-600', 'Conectando à API...', 'text-gray-500');
+        // Na primeira carga ou se houver um erro de conexão, mostre "Conectando..." no STATUS
+        if (isInitialLoad || hasConnectionError) {
+          updateStatusMessage('Conectando à API...', 'text-gray-500');
+          // No caso de erro anterior, redefinir o texto da tag para "Buscando..."
+          if (hasConnectionError) {
+            updateTagDisplay('Buscando...', 'text-orange-600');
+          }
         }
+        
+        hasConnectionError = false; // Resetar o flag de erro se a requisição está sendo feita
 
         const res = await fetch(API_URL);
-        connectionErrorOccurred = false; // Resetar o flag de erro se a requisição foi bem-sucedida
 
         if (!res.ok) {
           const errorBody = await res.text();
@@ -83,36 +96,38 @@
         }
 
         const data = await res.json();
-        const currentTag = data.tagId; // A tag atual recebida da API
+        const currentTag = data.tagId;
 
-        // Compara a tag atual com a última tag exibida
+        // SE A TAG MUDOU OU É A PRIMEIRA CARGA, ATUALIZA A EXIBIÇÃO DA TAG
         if (currentTag !== lastDisplayedTag) {
           if (currentTag) {
-            updateUI(currentTag, 'text-green-600', 'Nova tag lida com sucesso!', 'text-green-500');
+            updateTagDisplay(currentTag, 'text-green-600');
+            updateStatusMessage('Nova tag lida com sucesso!', 'text-green-500');
           } else {
-            // Se a API retornar null (nenhuma tag lida ainda) e for diferente da última exibida
-            updateUI('Nenhuma tag lida ainda.', 'text-orange-600', 'API conectada, aguardando tags...', 'text-gray-500');
+            // Se a API retornar null (nenhuma tag lida ainda)
+            updateTagDisplay('Nenhuma tag lida ainda.', 'text-orange-600');
+            updateStatusMessage('API conectada, aguardando tags...', 'text-gray-500');
           }
           lastDisplayedTag = currentTag; // Atualiza a última tag exibida
         } else {
-          // Se a tag for a mesma, apenas mantém o status da mensagem
+          // SE A TAG NÃO MUDOU, APENAS ATUALIZA A MENSAGEM DE STATUS
           if (currentTag) {
-              statusMessageElement.textContent = 'Aguardando nova tag...';
-              statusMessageElement.classList.remove('text-red-500', 'text-orange-500');
-              statusMessageElement.classList.add('text-green-500');
+            updateStatusMessage('Aguardando nova tag...', 'text-green-500');
           } else {
-              statusMessageElement.textContent = 'API conectada, aguardando tags...';
-              statusMessageElement.classList.remove('text-red-500', 'text-green-500');
-              statusMessageElement.classList.add('text-gray-500');
+            updateStatusMessage('API conectada, aguardando tags...', 'text-gray-500');
           }
         }
+        
+        isInitialLoad = false; // A primeira carga já aconteceu
 
       } catch (err) {
-        // Em caso de erro, exibe a mensagem de erro e seta o flag
-        connectionErrorOccurred = true;
-        updateUI('Erro de Conexão!', 'text-red-600', `Não foi possível conectar à API: ${err.message}`, 'text-red-500');
+        hasConnectionError = true; // Um erro de conexão ocorreu
+        // Atualiza AMBOS os elementos em caso de erro para feedback claro
+        updateTagDisplay('Erro de Conexão!', 'text-red-600'); 
+        updateStatusMessage(`Não foi possível conectar à API: ${err.message}`, 'text-red-500');
         console.error("Erro ao buscar tag:", err);
-        lastDisplayedTag = null; // Reinicia a última tag para forçar "Buscando..." na próxima tentativa de sucesso
+        lastDisplayedTag = null; // Reseta para forçar 'Buscando...' na recuperação
+        isInitialLoad = true; // Trata como carga inicial se recuperar para re-sincronizar
       }
     }
 
